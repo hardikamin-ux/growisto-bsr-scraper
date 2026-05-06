@@ -4,7 +4,13 @@ import io
 import tempfile
 import subprocess
 import datetime
+import threading
+import time
 from typing import Optional
+
+# Global lock — only one scrape job runs at a time across all sessions
+_scraper_lock = threading.Lock()
+_scraper_active = threading.Event()  # set while a job is running
 
 import streamlit as st
 from openpyxl import Workbook, load_workbook
@@ -625,18 +631,41 @@ def show_app():
     if ready and input_path:
         st.divider()
         with st.container(border=True):
-            st.markdown('<p class="g-label">⚙️ Scraping in Progress</p>', unsafe_allow_html=True)
-            st.markdown('<p class="g-sublabel">A Chrome browser is running — do not close it</p>', unsafe_allow_html=True)
-            prog_ph = st.progress(0)
-            stat_ph = st.empty()
-            log_ph  = st.empty()
-            with st.spinner(""):
-                output_bytes = run_scraper(input_path, log_ph, prog_ph, stat_ph)
-            if input_path and os.path.exists(input_path):
-                try:
-                    os.unlink(input_path)
-                except Exception:
-                    pass
+
+            # ── Wait if another job is running ────────────────────────────
+            if _scraper_active.is_set():
+                st.markdown('<p class="g-label">⏳ Waiting in Queue</p>', unsafe_allow_html=True)
+                wait_ph = st.empty()
+                wait_secs = 0
+                while _scraper_active.is_set():
+                    wait_ph.markdown(
+                        f'<div class="g-info">🕐 Another scrape is currently running. '
+                        f'You\'re next — please wait... ({wait_secs}s)</div>',
+                        unsafe_allow_html=True
+                    )
+                    time.sleep(3)
+                    wait_secs += 3
+                    st.rerun()
+                wait_ph.empty()
+
+            # ── Acquire lock and run ──────────────────────────────────────
+            _scraper_active.set()
+            try:
+                st.markdown('<p class="g-label">⚙️ Scraping in Progress</p>', unsafe_allow_html=True)
+                st.markdown('<p class="g-sublabel">Running headless Chrome on the server</p>', unsafe_allow_html=True)
+                prog_ph = st.progress(0)
+                stat_ph = st.empty()
+                log_ph  = st.empty()
+                with st.spinner(""):
+                    output_bytes = run_scraper(input_path, log_ph, prog_ph, stat_ph)
+            finally:
+                _scraper_active.clear()
+                if input_path and os.path.exists(input_path):
+                    try:
+                        os.unlink(input_path)
+                    except Exception:
+                        pass
+
             prog_ph.progress(1.0)
             if output_bytes:
                 st.markdown('<div class="g-success">✅ Scraping complete!</div>', unsafe_allow_html=True)

@@ -511,15 +511,19 @@ def main():
         return
 
     print(f"Found {len(products)} product(s) to scrape.")
-    print("Opening browser — do not close it while the scraper runs.\n")
+    print("Opening browser...\n")
     print("-" * 60)
 
     results = []
 
     with sync_playwright() as pw:
         browser = pw.chromium.launch(
-            headless=False,
-            args=["--start-maximized", "--disable-blink-features=AutomationControlled"]
+            headless=True,
+            args=[
+                "--no-sandbox",
+                "--disable-dev-shm-usage",
+                "--disable-blink-features=AutomationControlled",
+            ]
         )
 
         for idx, p in enumerate(products, 1):
