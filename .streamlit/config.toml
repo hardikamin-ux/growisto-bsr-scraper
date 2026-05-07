@@ -9,3 +9,6 @@ font                 = "sans serif"
 [server]
 port = 8503
 headless = false
+
+[browser]
+gatherUsageStats = false
