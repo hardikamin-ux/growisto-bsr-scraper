@@ -30,6 +30,14 @@ REM ── 2. Create install directory ─────────────�
 if not exist "%INSTALL_DIR%" mkdir "%INSTALL_DIR%"
 if not exist "%INSTALL_DIR%\.streamlit" mkdir "%INSTALL_DIR%\.streamlit"
 echo [OK] Install directory: %INSTALL_DIR%
+
+REM ── Disable Streamlit email prompt globally ───────────
+if not exist "%USERPROFILE%\.streamlit" mkdir "%USERPROFILE%\.streamlit"
+(
+echo [browser]
+echo gatherUsageStats = false
+) > "%USERPROFILE%\.streamlit\config.toml"
+echo [OK] Streamlit configured
 echo.
 
 REM ── 3. Download files from GitHub ────────────────────
@@ -62,16 +70,17 @@ REM ── 6. Create desktop launcher (.bat) ───────────�
 SET LAUNCHER=%INSTALL_DIR%\launch.bat
 (
 echo @echo off
+echo set STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
 echo cd /d "%INSTALL_DIR%"
 echo echo.
 echo echo ============================================
 echo echo   Launching Growisto BSR Scraper...
 echo echo   Opening at http://localhost:8503
-echo echo   Please wait 15 seconds...
+echo echo   Please wait 20 seconds...
 echo echo ============================================
 echo echo.
-echo start "" /B python -m streamlit run app.py --server.port 8503 --server.headless false
-echo timeout /t 15 /nobreak ^>nul
+echo start "" /B python -m streamlit run app.py --server.port 8503 --server.headless false --browser.gatherUsageStats false
+echo timeout /t 20 /nobreak ^>nul
 echo start "" "http://localhost:8503"
 echo echo.
 echo echo App is running. Keep this window open.
