@@ -246,9 +246,25 @@ def scrape_asin(browser, asin: str, marketplace: str) -> dict:
                 locale=locale,
                 timezone_id=timezone,
             )
-            context.add_init_script(
-                "Object.defineProperty(navigator, 'webdriver', { get: () => undefined });"
-            )
+            context.add_init_script("""
+                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+                window.chrome = {
+                    app: { isInstalled: false },
+                    runtime: {}
+                };
+                Object.defineProperty(navigator, 'plugins', {get: () => [
+                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+                    {name: 'Native Client', filename: 'internal-nacl-plugin'}
+                ]});
+                Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+                const originalQuery = window.navigator.permissions.query;
+                window.navigator.permissions.query = (parameters) => (
+                    parameters.name === 'notifications' ?
+                    Promise.resolve({state: Notification.permission}) :
+                    originalQuery(parameters)
+                );
+            """)
             page = context.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
@@ -522,20 +538,13 @@ def main():
             "--no-sandbox",
             "--disable-dev-shm-usage",
             "--disable-blink-features=AutomationControlled",
+            "--disable-infobars",
+            "--disable-extensions",
         ]
         if is_server:
-            # On Render — use bundled Chromium in headless mode
-            browser = pw.chromium.launch(
-                headless=True,
-                args=launch_args,
-            )
+            browser = pw.chromium.launch(headless=True, args=launch_args)
         else:
-            # Locally — use real installed Chrome (visible, harder to detect)
-            browser = pw.chromium.launch(
-                headless=False,
-                channel="chrome",
-                args=launch_args,
-            )
+            browser = pw.chromium.launch(headless=False, channel="chrome", args=launch_args)
 
         for idx, p in enumerate(products, 1):
             print(f"\n[{idx}/{len(products)}]  ASIN: {p['asin']}  |  Marketplace: {p['marketplace']}")
