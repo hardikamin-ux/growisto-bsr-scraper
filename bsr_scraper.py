@@ -223,52 +223,39 @@ def is_captcha(page_content: str) -> bool:
 
 # ── Scraping ──────────────────────────────────────────────────────────────────
 
-def scrape_asin(browser, asin: str, marketplace: str) -> dict:
+STEALTH_SCRIPT = """
+    Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
+    window.chrome = { app: { isInstalled: false }, runtime: {} };
+    Object.defineProperty(navigator, 'plugins', {get: () => [
+        {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
+        {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
+        {name: 'Native Client', filename: 'internal-nacl-plugin'}
+    ]});
+    Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
+    const origQuery = window.navigator.permissions.query;
+    window.navigator.permissions.query = (p) => (
+        p.name === 'notifications' ?
+        Promise.resolve({state: Notification.permission}) : origQuery(p)
+    );
+"""
+
+
+def scrape_asin(ctx, asin: str, marketplace: str) -> dict:
+    """Scrape one ASIN using a provided BrowserContext (persistent or fresh)."""
     domain = DOMAINS.get(marketplace.upper())
     if not domain:
         return {"status": "FAILED", "error": f"Unknown marketplace: {marketplace}", "title": "", "bsr": []}
 
-    url    = f"{domain}/dp/{asin}"
-    locale, timezone = LOCALE_MAP.get(marketplace.upper(), ("en-US", "America/New_York"))
+    url = f"{domain}/dp/{asin}"
 
     for attempt in range(1, MAX_RETRIES + 1):
         print(f"    Attempt {attempt}/{MAX_RETRIES} → {url}")
-        context = None
+        page = None
         try:
-            # Fresh context per attempt with the correct locale for this marketplace
-            context = browser.new_context(
-                viewport={"width": 1440, "height": 900},
-                user_agent=(
-                    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"
-                ),
-                locale=locale,
-                timezone_id=timezone,
-            )
-            context.add_init_script("""
-                Object.defineProperty(navigator, 'webdriver', {get: () => undefined});
-                window.chrome = {
-                    app: { isInstalled: false },
-                    runtime: {}
-                };
-                Object.defineProperty(navigator, 'plugins', {get: () => [
-                    {name: 'Chrome PDF Plugin', filename: 'internal-pdf-viewer'},
-                    {name: 'Chrome PDF Viewer', filename: 'mhjfbmdgcfjbbpaeojofohoefgiehjai'},
-                    {name: 'Native Client', filename: 'internal-nacl-plugin'}
-                ]});
-                Object.defineProperty(navigator, 'languages', {get: () => ['en-US', 'en']});
-                const originalQuery = window.navigator.permissions.query;
-                window.navigator.permissions.query = (parameters) => (
-                    parameters.name === 'notifications' ?
-                    Promise.resolve({state: Notification.permission}) :
-                    originalQuery(parameters)
-                );
-            """)
-            page = context.new_page()
+            page = ctx.new_page()
             page.goto(url, wait_until="domcontentloaded", timeout=30000)
 
-            # Dismiss cookie/sign-in/GDPR popups
+            # Dismiss cookie/GDPR popups
             for selector in ["#sp-cc-accept", "input[name='accept']",
                               "#gdpr-consent-tool-wrapper button", ".a-button-close"]:
                 try:
@@ -284,7 +271,7 @@ def scrape_asin(browser, asin: str, marketplace: str) -> dict:
                 page.evaluate("window.scrollBy(0, window.innerHeight * 0.8)")
                 page.wait_for_timeout(random.randint(300, 600))
 
-            # Wait for product details
+            # Wait for product details section
             try:
                 page.wait_for_selector(
                     "#detailBulletsWrapper_feature_div, "
@@ -296,8 +283,8 @@ def scrape_asin(browser, asin: str, marketplace: str) -> dict:
                 pass
 
             content = page.content()
-            context.close()
-            context = None
+            page.close()
+            page = None
 
             if is_captcha(content):
                 print(f"    CAPTCHA detected — waiting 15s before retry ...")
@@ -321,9 +308,9 @@ def scrape_asin(browser, asin: str, marketplace: str) -> dict:
             print(f"    Error: {exc} — will retry")
             time.sleep(5)
         finally:
-            if context:
+            if page:
                 try:
-                    context.close()
+                    page.close()
                 except Exception:
                     pass
 
@@ -539,39 +526,89 @@ def main():
             "--disable-dev-shm-usage",
             "--disable-blink-features=AutomationControlled",
             "--disable-infobars",
-            "--disable-extensions",
         ]
+
         if is_server:
+            # ── Server (Render): fresh headless context per product ────────
             browser = pw.chromium.launch(headless=True, args=launch_args)
+
+            def get_context():
+                ctx = browser.new_context(
+                    viewport={"width": 1440, "height": 900},
+                    user_agent=(
+                        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+                        "AppleWebKit/537.36 (KHTML, like Gecko) "
+                        "Chrome/124.0.0.0 Safari/537.36"
+                    ),
+                )
+                ctx.add_init_script(STEALTH_SCRIPT)
+                return ctx
+
+            def run_all():
+                for idx, p in enumerate(products, 1):
+                    print(f"\n[{idx}/{len(products)}]  ASIN: {p['asin']}  |  Marketplace: {p['marketplace']}")
+                    ctx = get_context()
+                    result = scrape_asin(ctx, p["asin"], p["marketplace"])
+                    ctx.close()
+                    result["asin"]        = p["asin"]
+                    result["marketplace"] = p["marketplace"]
+                    result["scraped_at"]  = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                    if result["status"] == "SUCCESS":
+                        bsr = result.get("bsr", [])
+                        print(f"    OK  {result.get('title', '')[:65]}")
+                        if bsr:
+                            print(f"    BSR: #{bsr[0][0]}  in  {bsr[0][1]}")
+                            for sub in bsr[1:]:
+                                print(f"         #{sub[0]}  in  {sub[1]}")
+                    else:
+                        print(f"    FAILED — {result.get('error', '')}")
+                    results.append(result)
+                    if idx < len(products):
+                        wait = random.uniform(3, 6)
+                        print(f"    Waiting {wait:.1f}s ...")
+                        time.sleep(wait)
+
+            run_all()
+            browser.close()
+
         else:
-            browser = pw.chromium.launch(headless=False, channel="chrome", args=launch_args)
+            # ── Local: persistent Chrome profile so Amazon sees returning user ──
+            import pathlib
+            profile_dir = str(pathlib.Path.home() / ".growisto-bsr-profile")
+            os.makedirs(profile_dir, exist_ok=True)
+            print(f"  Using Chrome profile: {profile_dir}")
 
-        for idx, p in enumerate(products, 1):
-            print(f"\n[{idx}/{len(products)}]  ASIN: {p['asin']}  |  Marketplace: {p['marketplace']}")
+            ctx = pw.chromium.launch_persistent_context(
+                user_data_dir=profile_dir,
+                headless=False,
+                channel="chrome",
+                args=launch_args,
+                viewport={"width": 1440, "height": 900},
+            )
+            ctx.add_init_script(STEALTH_SCRIPT)
 
-            result               = scrape_asin(browser, p["asin"], p["marketplace"])
-            result["asin"]       = p["asin"]
-            result["marketplace"]= p["marketplace"]
-            result["scraped_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            for idx, p in enumerate(products, 1):
+                print(f"\n[{idx}/{len(products)}]  ASIN: {p['asin']}  |  Marketplace: {p['marketplace']}")
+                result               = scrape_asin(ctx, p["asin"], p["marketplace"])
+                result["asin"]       = p["asin"]
+                result["marketplace"]= p["marketplace"]
+                result["scraped_at"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                if result["status"] == "SUCCESS":
+                    bsr = result.get("bsr", [])
+                    print(f"    OK  {result.get('title', '')[:65]}")
+                    if bsr:
+                        print(f"    BSR: #{bsr[0][0]}  in  {bsr[0][1]}")
+                        for sub in bsr[1:]:
+                            print(f"         #{sub[0]}  in  {sub[1]}")
+                else:
+                    print(f"    FAILED — {result.get('error', '')}")
+                results.append(result)
+                if idx < len(products):
+                    wait = random.uniform(3, 6)
+                    print(f"    Waiting {wait:.1f}s ...")
+                    time.sleep(wait)
 
-            if result["status"] == "SUCCESS":
-                bsr = result.get("bsr", [])
-                print(f"    OK  {result.get('title', '')[:65]}")
-                if bsr:
-                    print(f"    BSR: #{bsr[0][0]}  in  {bsr[0][1]}")
-                    for sub in bsr[1:]:
-                        print(f"         #{sub[0]}  in  {sub[1]}")
-            else:
-                print(f"    FAILED — {result.get('error', '')}")
-
-            results.append(result)
-
-            if idx < len(products):
-                wait = random.uniform(3, 6)
-                print(f"    Waiting {wait:.1f}s ...")
-                time.sleep(wait)
-
-        browser.close()
+            ctx.close()
 
 
     timestamp   = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
