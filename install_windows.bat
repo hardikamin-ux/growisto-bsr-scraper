@@ -70,7 +70,9 @@ REM ── 6. Create desktop launcher (.bat) ───────────�
 SET LAUNCHER=%INSTALL_DIR%\launch.bat
 (
 echo @echo off
+echo chcp 65001 ^>nul
 echo set STREAMLIT_BROWSER_GATHER_USAGE_STATS=false
+echo set PYTHONIOENCODING=utf-8
 echo cd /d "%INSTALL_DIR%"
 echo echo.
 echo echo ============================================

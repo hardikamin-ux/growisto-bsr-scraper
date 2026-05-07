@@ -249,7 +249,7 @@ def scrape_asin(ctx, asin: str, marketplace: str) -> dict:
     url = f"{domain}/dp/{asin}"
 
     for attempt in range(1, MAX_RETRIES + 1):
-        print(f"    Attempt {attempt}/{MAX_RETRIES} → {url}")
+        print(f"    Attempt {attempt}/{MAX_RETRIES} -> {url}")
         page = None
         try:
             page = ctx.new_page()
