@@ -517,15 +517,25 @@ def main():
     results = []
 
     with sync_playwright() as pw:
-        is_headless = os.environ.get("RENDER", "false").lower() == "true"
-        browser = pw.chromium.launch(
-            headless=is_headless,
-            args=[
-                "--no-sandbox",
-                "--disable-dev-shm-usage",
-                "--disable-blink-features=AutomationControlled",
-            ]
-        )
+        is_server = os.environ.get("RENDER", "").lower() == "true"
+        launch_args = [
+            "--no-sandbox",
+            "--disable-dev-shm-usage",
+            "--disable-blink-features=AutomationControlled",
+        ]
+        if is_server:
+            # On Render — use bundled Chromium in headless mode
+            browser = pw.chromium.launch(
+                headless=True,
+                args=launch_args,
+            )
+        else:
+            # Locally — use real installed Chrome (visible, harder to detect)
+            browser = pw.chromium.launch(
+                headless=False,
+                channel="chrome",
+                args=launch_args,
+            )
 
         for idx, p in enumerate(products, 1):
             print(f"\n[{idx}/{len(products)}]  ASIN: {p['asin']}  |  Marketplace: {p['marketplace']}")
