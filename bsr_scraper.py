@@ -517,8 +517,9 @@ def main():
     results = []
 
     with sync_playwright() as pw:
+        is_headless = os.environ.get("RENDER", "false").lower() == "true"
         browser = pw.chromium.launch(
-            headless=True,
+            headless=is_headless,
             args=[
                 "--no-sandbox",
                 "--disable-dev-shm-usage",
