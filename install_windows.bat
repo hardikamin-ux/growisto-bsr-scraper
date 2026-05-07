@@ -76,16 +76,11 @@ echo echo.
 echo echo ============================================
 echo echo   Launching Growisto BSR Scraper...
 echo echo   Opening at http://localhost:8503
-echo echo   Please wait 20 seconds...
+echo echo   Keep this window open while using the app.
 echo echo ============================================
 echo echo.
-echo start "" /B python -m streamlit run app.py --server.port 8503 --server.headless false --browser.gatherUsageStats false
-echo timeout /t 20 /nobreak ^>nul
-echo start "" "http://localhost:8503"
-echo echo.
-echo echo App is running. Keep this window open.
-echo echo Press Ctrl+C to stop.
-echo pause ^>nul
+echo start "" /B cmd /c "timeout /t 20 /nobreak ^>nul ^&^& start http://localhost:8503"
+echo echo. ^| python -m streamlit run app.py --server.port 8503 --server.headless false --browser.gatherUsageStats=false
 ) > "%LAUNCHER%"
 
 REM ── 7. Create desktop shortcut (.lnk) ─────────────────
