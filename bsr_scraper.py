@@ -573,9 +573,15 @@ def main():
 
         else:
             # ── Local: persistent Chrome profile so Amazon sees returning user ──
-            import pathlib
+            import pathlib, glob
             profile_dir = str(pathlib.Path.home() / ".growisto-bsr-profile")
             os.makedirs(profile_dir, exist_ok=True)
+            # Remove stale lock files from previous sessions
+            for lock in glob.glob(os.path.join(profile_dir, "Singleton*")):
+                try:
+                    os.remove(lock)
+                except Exception:
+                    pass
             print(f"  Using Chrome profile: {profile_dir}")
 
             ctx = pw.chromium.launch_persistent_context(
