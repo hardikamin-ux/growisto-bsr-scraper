@@ -596,11 +596,6 @@ def show_app():
                     except Exception:
                         st.markdown('<div class="g-error">Could not read file.</div>', unsafe_allow_html=True)
 
-        st.markdown("<br>", unsafe_allow_html=True)
-        if st.button("← Sign Out", key="signout"):
-            st.session_state.authenticated = False
-            st.rerun()
-
     with right_col:
         with st.container(border=True):
             st.markdown("""
@@ -690,7 +685,4 @@ def show_app():
 
 
 # ── Entry ─────────────────────────────────────────────────────────────────────
-if st.session_state.authenticated:
-    show_app()
-else:
-    show_login()
+show_app()
