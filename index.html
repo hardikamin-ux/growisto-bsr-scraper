@@ -295,12 +295,13 @@
             <div class="dl-os-icon">🪟</div>
             <div>
               <div class="dl-os-name">Windows</div>
-              <div class="dl-os-req">Windows 10/11 · Python 3.9+ required</div>
+              <div class="dl-os-req">Windows 10/11 · Python 3.11 or 3.12 required</div>
             </div>
           </div>
           <a href="https://github.com/hardikamin-ux/growisto-bsr-scraper/archive/refs/heads/main.zip" class="dl-btn">⬇️ Download for Windows</a>
           <ul class="dl-steps">
-            <li>Download and unzip the file</li>
+            <li><strong style="color:#E35D34">Install Python 3.12 first</strong> (see below) — required</li>
+            <li>Download and unzip the BSR file above</li>
             <li>Right-click <strong style="color:#B8DBD9">install_windows.bat</strong> → Run as administrator</li>
             <li>Installs all packages + Chromium (~3–5 min)</li>
             <li><strong style="color:#B8DBD9">Growisto BSR Scraper</strong> shortcut appears on your Desktop</li>
@@ -313,11 +314,28 @@
 
       </div>
 
-      <div style="margin-top:16px; padding:14px 18px; border-radius:10px; background:rgba(227,93,52,0.08); border:1.5px solid rgba(227,93,52,0.2);">
-        <p style="font-size:12px; color:rgba(255,255,255,0.5); line-height:1.6;">
-          <strong style="color:#E35D34;">Prerequisite:</strong> Python 3.9+ must be installed.
-          Download from <a href="https://www.python.org/downloads/" style="color:#B8DBD9;" target="_blank">python.org/downloads</a>.
-          On Windows, tick <strong style="color:#fff;">"Add Python to PATH"</strong> during install.
+      <!-- PYTHON INSTALL GUIDE (Windows) -->
+      <div style="margin-top:20px; padding:20px 22px; border-radius:12px; background:rgba(227,93,52,0.08); border:1.5px solid rgba(227,93,52,0.25);">
+        <p style="font-size:14px; font-weight:700; color:#E35D34; margin-bottom:10px; letter-spacing:0.3px;">
+          ⚠️ PYTHON SETUP — WINDOWS USERS (DO THIS FIRST)
+        </p>
+        <p style="font-size:12px; color:rgba(255,255,255,0.7); line-height:1.7; margin-bottom:14px;">
+          <strong style="color:#fff;">Important:</strong> Use Python <strong style="color:#B8DBD9;">3.11 or 3.12</strong> only.
+          The latest version (3.14) is too new and breaks Streamlit. Do <strong style="color:#E35D34;">NOT</strong> use Python from the Microsoft Store.
+        </p>
+        <ol style="font-size:12px; color:rgba(255,255,255,0.7); line-height:1.9; padding-left:18px; margin-bottom:0;">
+          <li>Go to <a href="https://www.python.org/downloads/release/python-31210/" style="color:#B8DBD9; font-weight:600;" target="_blank">python.org/downloads/release/python-31210</a> (Python 3.12.10)</li>
+          <li>Scroll down to the <strong style="color:#fff;">"Files"</strong> section</li>
+          <li>Click <strong style="color:#B8DBD9;">"Windows installer (64-bit)"</strong> to download</li>
+          <li>Open the downloaded <code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; color:#B8DBD9;">.exe</code> file</li>
+          <li><strong style="color:#E35D34;">CRITICAL:</strong> On the first screen, tick the box at the bottom — <strong style="color:#fff;">"Add python.exe to PATH"</strong></li>
+          <li>Click <strong style="color:#B8DBD9;">"Install Now"</strong> and wait ~2 minutes</li>
+          <li><strong style="color:#fff;">Restart your computer</strong> so PATH takes effect</li>
+          <li>Now run the BSR installer above</li>
+        </ol>
+        <p style="font-size:11px; color:rgba(255,255,255,0.45); line-height:1.6; margin-top:12px; padding-top:12px; border-top:1px solid rgba(255,255,255,0.08);">
+          <strong style="color:#E35D34;">Already have Python 3.14 or Microsoft Store Python?</strong>
+          Uninstall it first: Settings → Apps → search for Python → Uninstall. Then follow the steps above.
         </p>
       </div>
     </div>
