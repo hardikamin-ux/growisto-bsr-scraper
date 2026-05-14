@@ -37,6 +37,11 @@ if not exist "%USERPROFILE%\.streamlit" mkdir "%USERPROFILE%\.streamlit"
 echo [browser]
 echo gatherUsageStats = false
 ) > "%USERPROFILE%\.streamlit\config.toml"
+REM Pre-fill empty email so Streamlit never asks
+(
+echo [general]
+echo email = ""
+) > "%USERPROFILE%\.streamlit\credentials.toml"
 echo [OK] Streamlit configured
 echo.
 
@@ -81,8 +86,17 @@ echo echo   Opening at http://localhost:8503
 echo echo   Keep this window open while using the app.
 echo echo ============================================
 echo echo.
+echo where python ^>nul 2^>^&1
+echo if errorlevel 1 (
+echo     echo ERROR: Python not found in PATH. Please reinstall Python with "Add to PATH" ticked.
+echo     pause
+echo     exit /b 1
+echo ^)
 echo start "" /B cmd /c "timeout /t 20 /nobreak ^>nul ^&^& start http://localhost:8503"
-echo echo. ^| python -m streamlit run app.py --server.port 8503 --server.headless false --browser.gatherUsageStats=false
+echo python -m streamlit run app.py --server.port 8503 --server.headless false --browser.gatherUsageStats=false
+echo echo.
+echo echo Streamlit exited. Press any key to close.
+echo pause ^>nul
 ) > "%LAUNCHER%"
 
 REM ── 7. Create desktop shortcut (.lnk) ─────────────────
